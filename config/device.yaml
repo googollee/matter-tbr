@@ -1,0 +1,30 @@
+# 设备配对信息与调试开关的默认值(提交到仓库)。
+# 默认值沿用改用 factory 分区之前固件的 SDK 测试值(仅 product_name 改为 Thread BR),仅限开发测试。
+# 本机实际值写进 config/device.local.yaml(不提交),只需写要覆盖的字段。
+# 由 scripts/gen_commissioning.py 读取,生成 factory 分区镜像和固件 sdkconfig 片段。
+
+# 设备标识
+vendor_id: 0xFFF1            # 测试 VID;正式 VID 需加入 CSA
+product_id: 0x8000
+vendor_name: TEST_VENDOR     # 1~32 字符
+product_name: Thread BR      # 1~32 字符
+serial_number: TEST_SN       # 1~32 字符
+hardware_version: 0
+hardware_version_string: TEST_VERSION   # 1~64 字符
+
+# 配对信息(决定 QR 和手动配对码)
+discriminator: 3840          # 0~4095
+passcode: 20202021           # 1~99999998,不能是 11111111 等规范禁用值
+
+# 调试:打开串口 console(CONFIG_ENABLE_CHIP_SHELL),可用 `matter otcli ...`。
+# 发布版应保持 false。
+debug_shell: false
+
+# 设备证明(Device Attestation)
+attestation:
+  mode: test                 # test:使用下面的测试证书;custom:自生成证书(阶段 2,尚未实现)
+  # 路径相对仓库根目录。测试证书由 scripts/extract_test_attestation.py 从 SDK 提取
+  dac_cert: config/attestation/test/dac_cert.der
+  dac_key: config/attestation/test/dac_key.der
+  pai_cert: config/attestation/test/pai_cert.der
+  cd: config/attestation/test/cd.der

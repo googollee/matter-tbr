@@ -1,0 +1,12 @@
+matter-tbr
+Copyright 2026 Googol Lee
+
+This project is licensed under the Apache License, Version 2.0.
+
+Portions of firmware/ are derived from the Matter SDK (project-chip/connectedhomeip),
+examples/thread-br-app/esp32, Copyright Project CHIP Authors, licensed under the
+Apache License, Version 2.0. Modified files carry a "Modified by" notice.
+
+This project is not Matter certified. Use of the Matter SDK does not convey the right
+to identify any product as Matter compliant or certified. Matter trademarks and logos
+belong to the Connectivity Standards Alliance.
