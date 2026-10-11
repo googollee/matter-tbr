@@ -1,0 +1,71 @@
+create_network:
+  target:
+    device:
+      integration: thread_br
+  fields:
+    network_name:
+      required: false
+      example: "ThreadBR-home"
+      selector:
+        text:
+    channel:
+      required: false
+      example: 20
+      selector:
+        number:
+          min: 11
+          max: 26
+          mode: box
+    passphrase:
+      required: false
+      selector:
+        text:
+          type: password
+
+adopt_network:
+  target:
+    device:
+      integration: thread_br
+  fields:
+    source_device:
+      required: false
+      selector:
+        device:
+          integration: thread_br
+    delay:
+      required: false
+      default: 120
+      selector:
+        number:
+          min: 30
+          max: 600
+          unit_of_measurement: s
+          mode: box
+
+change_channel:
+  target:
+    device:
+      integration: thread_br
+  fields:
+    channel:
+      required: false
+      example: 25
+      selector:
+        number:
+          min: 11
+          max: 26
+          mode: box
+    delay:
+      required: false
+      default: 120
+      selector:
+        number:
+          min: 30
+          max: 600
+          unit_of_measurement: s
+          mode: box
+
+sync_network:
+  target:
+    device:
+      integration: thread_br

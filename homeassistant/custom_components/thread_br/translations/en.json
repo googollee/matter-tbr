@@ -1,0 +1,270 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Thread Border Router",
+        "description": "Adds sensors for Thread border routers found through the Matter integration."
+      }
+    },
+    "abort": {
+      "matter_not_loaded": "The Matter integration is not loaded. Set up Matter first."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "thread_network": {
+        "name": "Network",
+        "state": {
+          "none": "Not created",
+          "active": "Created",
+          "creating": "Creating",
+          "changing": "Changing channel"
+        },
+        "state_attributes": {
+          "network_name": {
+            "name": "Network name"
+          },
+          "channel": {
+            "name": "Channel"
+          },
+          "pan_id": {
+            "name": "PAN ID"
+          },
+          "extended_pan_id": {
+            "name": "Extended PAN ID"
+          }
+        }
+      },
+      "thread_role": {
+        "name": "Role",
+        "state": {
+          "unspecified": "Not running",
+          "unassigned": "Unassigned",
+          "sleepy_end_device": "Sleepy end device",
+          "end_device": "End device",
+          "reed": "Router-eligible end device",
+          "router": "Router",
+          "leader": "Leader"
+        }
+      },
+      "thread_channel": {
+        "name": "Channel"
+      },
+      "credentials": {
+        "name": "Credentials",
+        "state": {
+          "no_network": "No network",
+          "saved": "Saved",
+          "missing": "Not saved",
+          "out_of_sync": "Out of date"
+        }
+      },
+      "neighbors": {
+        "name": "Neighbors"
+      },
+      "routes": {
+        "name": "Routes"
+      },
+      "partition_id": {
+        "name": "Partition ID"
+      },
+      "leader_router_id": {
+        "name": "Leader router ID"
+      },
+      "preferred_network": {
+        "name": "Preferred network",
+        "state": {
+          "no_preferred": "No preferred network",
+          "adopted": "Adopted",
+          "different": "Differs from preferred"
+        }
+      }
+    },
+    "binary_sensor": {
+      "thread_interface": {
+        "name": "Interface"
+      },
+      "network_fault": {
+        "name": "Network fault"
+      }
+    },
+    "button": {
+      "create_network": {
+        "name": "Create network"
+      },
+      "adopt_network": {
+        "name": "Adopt preferred network"
+      }
+    }
+  },
+  "device": {
+    "thread_br": {
+      "name": "{name} Thread"
+    }
+  },
+  "services": {
+    "create_network": {
+      "name": "Create Thread network",
+      "description": "Creates a new Thread network on the border router and saves its credentials in Home Assistant. A border router can only hold one network and Matter has no command to delete it, so this fails if one already exists.",
+      "fields": {
+        "network_name": {
+          "name": "Network name",
+          "description": "1 to 16 bytes. A random name is used if empty."
+        },
+        "channel": {
+          "name": "Channel",
+          "description": "Thread channel 11 to 26. If empty, one is chosen automatically to avoid known Wi-Fi and Zigbee channels (25 when nothing is known)."
+        },
+        "passphrase": {
+          "name": "Passphrase",
+          "description": "Commissioner passphrase, 6 to 255 bytes. Only needed for external Thread commissioners; it is not stored. A random PSKc is used if empty."
+        }
+      }
+    },
+    "sync_network": {
+      "name": "Save network credentials",
+      "description": "Reads the credentials of the network that already exists on the border router and saves them in Home Assistant and matter-server. Use it when a network was created but its credentials were not saved."
+    },
+    "change_channel": {
+      "name": "Change Thread channel",
+      "description": "Moves the existing Thread network to another channel without recreating it. After the delay, every device on the network switches at the same time. Only works while the border router is the network leader.",
+      "fields": {
+        "channel": {
+          "name": "Channel",
+          "description": "Thread channel 11 to 26. If empty, one is chosen automatically to avoid known Wi-Fi and Zigbee channels."
+        },
+        "delay": {
+          "name": "Delay",
+          "description": "Seconds to wait before the network switches, 30 to 600. Gives sleepy devices time to learn about the change."
+        }
+      }
+    },
+    "adopt_network": {
+      "name": "Adopt Thread network",
+      "description": "Makes a border router join an existing Thread network, so two border routers share one network. Uses the preferred Thread network of Home Assistant unless a source border router is chosen. If the border router is already on a different network, that whole network, including every device on it, is migrated to the target network after the delay; this cannot be cancelled and needs the border router to be the leader.",
+      "fields": {
+        "source_device": {
+          "name": "Source border router",
+          "description": "Another border router whose current network is adopted. If empty, the preferred Thread network of Home Assistant is used."
+        },
+        "delay": {
+          "name": "Delay",
+          "description": "Only used when the border router is already on another network: seconds to wait before the network switches, 30 to 600."
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "integration_not_loaded": {
+      "message": "The Thread Border Router integration is not loaded."
+    },
+    "device_not_found": {
+      "message": "The selected device is not a Thread border router managed by this integration."
+    },
+    "operation_in_progress": {
+      "message": "A network is already being created on this border router."
+    },
+    "invalid_parameter": {
+      "message": "Invalid parameter: {reason}"
+    },
+    "network_exists": {
+      "message": "This border router already has a Thread network. Matter has no command to delete it; it has to be cleared on the device itself."
+    },
+    "create_failed": {
+      "message": "Could not create the Thread network: {reason}"
+    },
+    "no_network": {
+      "message": "This border router has no Thread network to change."
+    },
+    "sync_failed": {
+      "message": "Could not read the network credentials from the border router: {reason}"
+    },
+    "no_channel_available": {
+      "message": "No Thread channel is left after excluding the ones in the options. Remove some of them or pass a channel explicitly."
+    },
+    "not_leader": {
+      "message": "This border router is not the leader of its Thread network, so it cannot change the channel."
+    },
+    "pending_in_progress": {
+      "message": "A network migration is already waiting to take effect on this border router. Wait for it to finish, then try again."
+    },
+    "already_on_channel": {
+      "message": "The network is already on channel {channel}."
+    },
+    "change_failed": {
+      "message": "Could not change the channel: {reason}"
+    },
+    "change_not_switched": {
+      "message": "The border router accepted the change, but the network did not switch in time: {reason}. Check the channel sensor later; the credentials will be saved automatically when it switches."
+    },
+    "credentials_not_saved": {
+      "message": "The border router's Thread network was changed, but its credentials could not be saved in Home Assistant ({reason}). Run the \"Save network credentials\" action to save them."
+    },
+    "adopt_failed": {
+      "message": "Could not join the Thread network: {reason}"
+    },
+    "no_preferred_dataset": {
+      "message": "Home Assistant has no preferred Thread network. Choose a source border router, or set a preferred network on the Thread page."
+    },
+    "source_no_network": {
+      "message": "The source border router has no Thread network."
+    },
+    "already_on_network": {
+      "message": "This border router is already on that Thread network."
+    },
+    "adopt_not_leader": {
+      "message": "This border router is already on another Thread network and is not its leader, so it cannot move that network. Run the action on the leader, or clear this border router first."
+    },
+    "adopt_not_switched": {
+      "message": "The network did not switch in time: {reason}. The migration was handed to the border router and may still take effect; check the network sensor later."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Channel selection",
+        "description": "When a network is created without a channel, the channel is chosen to avoid interference. The Zigbee channel is read from ZHA automatically; add whatever else you know about here.",
+        "data": {
+          "wifi_channels": "Nearby Wi-Fi channels (2.4 GHz)",
+          "avoid_channels": "Thread channels to avoid"
+        },
+        "data_description": {
+          "wifi_channels": "Channels used by Wi-Fi access points nearby. Thread channels under them are avoided.",
+          "avoid_channels": "Channels that are never chosen."
+        }
+      }
+    }
+  },
+  "issues": {
+    "credentials_missing": {
+      "title": "Thread credentials are not saved",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Save the Thread network credentials",
+            "description": "The border router has the Thread network \"{name}\", but Home Assistant has no saved credentials for it. Without them Thread devices cannot be added to this network. Select Submit to read them from the border router and save them."
+          }
+        },
+        "abort": {
+          "sync_failed": "Could not save the credentials: {reason}",
+          "not_loaded": "The Thread Border Router integration is not loaded."
+        }
+      }
+    },
+    "credentials_out_of_sync": {
+      "title": "Thread credentials are out of date",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Save the Thread network credentials",
+            "description": "The Thread network \"{name}\" on the border router changed (for example it moved to another channel), and the credentials saved in Home Assistant are older. Select Submit to read the current ones from the border router and save them."
+          }
+        },
+        "abort": {
+          "sync_failed": "Could not save the credentials: {reason}",
+          "not_loaded": "The Thread Border Router integration is not loaded."
+        }
+      }
+    }
+  }
+}

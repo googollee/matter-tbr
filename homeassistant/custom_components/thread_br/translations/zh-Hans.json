@@ -1,0 +1,270 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Thread 边界路由器",
+        "description": "为通过 Matter 集成发现的 Thread 边界路由器添加传感器。"
+      }
+    },
+    "abort": {
+      "matter_not_loaded": "Matter 集成尚未加载,请先设置 Matter。"
+    }
+  },
+  "entity": {
+    "sensor": {
+      "thread_network": {
+        "name": "网络",
+        "state": {
+          "none": "未创建",
+          "active": "已创建",
+          "creating": "创建中",
+          "changing": "迁移信道中"
+        },
+        "state_attributes": {
+          "network_name": {
+            "name": "网络名"
+          },
+          "channel": {
+            "name": "信道"
+          },
+          "pan_id": {
+            "name": "PAN ID"
+          },
+          "extended_pan_id": {
+            "name": "Extended PAN ID"
+          }
+        }
+      },
+      "thread_role": {
+        "name": "角色",
+        "state": {
+          "unspecified": "未运行",
+          "unassigned": "未分配",
+          "sleepy_end_device": "休眠终端设备",
+          "end_device": "终端设备",
+          "reed": "可升级为路由器的终端设备",
+          "router": "路由器",
+          "leader": "Leader"
+        }
+      },
+      "thread_channel": {
+        "name": "信道"
+      },
+      "credentials": {
+        "name": "凭证",
+        "state": {
+          "no_network": "没有网络",
+          "saved": "已保存",
+          "missing": "未保存",
+          "out_of_sync": "已过期"
+        }
+      },
+      "neighbors": {
+        "name": "邻居数"
+      },
+      "routes": {
+        "name": "路由器数"
+      },
+      "partition_id": {
+        "name": "分区 ID"
+      },
+      "leader_router_id": {
+        "name": "Leader 路由器 ID"
+      },
+      "preferred_network": {
+        "name": "首选网络",
+        "state": {
+          "no_preferred": "无首选网络",
+          "adopted": "已采纳",
+          "different": "与首选不同"
+        }
+      }
+    },
+    "binary_sensor": {
+      "thread_interface": {
+        "name": "接口"
+      },
+      "network_fault": {
+        "name": "网络故障"
+      }
+    },
+    "button": {
+      "create_network": {
+        "name": "创建网络"
+      },
+      "adopt_network": {
+        "name": "采纳首选网络"
+      }
+    }
+  },
+  "device": {
+    "thread_br": {
+      "name": "{name} Thread"
+    }
+  },
+  "services": {
+    "create_network": {
+      "name": "创建 Thread 网络",
+      "description": "在边界路由器上创建新的 Thread 网络,并把凭证保存到 Home Assistant。一个边界路由器只能有一个网络,Matter 没有删除网络的命令,所以已有网络时会失败。",
+      "fields": {
+        "network_name": {
+          "name": "网络名",
+          "description": "1 到 16 字节,留空则随机。"
+        },
+        "channel": {
+          "name": "信道",
+          "description": "Thread 信道 11 到 26。留空则自动选择,避开已知的 Wi-Fi 和 Zigbee 信道(什么都不知道时选 25)。"
+        },
+        "passphrase": {
+          "name": "密码短语",
+          "description": "Commissioner 密码短语,6 到 255 字节。只有外部 Thread 配网工具才需要,不会被保存,留空则 PSKc 随机。"
+        }
+      }
+    },
+    "sync_network": {
+      "name": "保存网络凭证",
+      "description": "读取边界路由器上已有网络的凭证,保存到 Home Assistant 和 matter-server。用于网络已创建但凭证没有保存成功的情况。"
+    },
+    "change_channel": {
+      "name": "更改 Thread 信道",
+      "description": "把已有的 Thread 网络迁到另一个信道,不用重建网络。延迟到期后,网络里的所有设备同时切换。只在边界路由器是网络的 Leader 时可用。",
+      "fields": {
+        "channel": {
+          "name": "信道",
+          "description": "Thread 信道 11 到 26。留空则自动选择,避开已知的 Wi-Fi 和 Zigbee 信道。"
+        },
+        "delay": {
+          "name": "延迟",
+          "description": "网络切换前等待的秒数,30 到 600。给休眠设备留出知晓变化的时间。"
+        }
+      }
+    },
+    "adopt_network": {
+      "name": "采纳 Thread 网络",
+      "description": "让边界路由器加入一个已有的 Thread 网络,两个边界路由器共用同一个网络。默认使用 Home Assistant 的首选 Thread 网络,也可以指定另一个边界路由器作为来源。如果这个边界路由器已经在另一个网络里,那个网络(包括上面的所有设备)会在延迟后整个迁到目标网络;迁移不能取消,并且要求这个边界路由器是 Leader。",
+      "fields": {
+        "source_device": {
+          "name": "来源边界路由器",
+          "description": "采纳这个边界路由器当前所在的网络。留空则使用 Home Assistant 的首选 Thread 网络。"
+        },
+        "delay": {
+          "name": "延迟",
+          "description": "仅在边界路由器已经在另一个网络里时使用:网络切换前等待的秒数,30 到 600。"
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "integration_not_loaded": {
+      "message": "Thread Border Router 集成尚未加载。"
+    },
+    "device_not_found": {
+      "message": "所选设备不是本集成管理的 Thread 边界路由器。"
+    },
+    "operation_in_progress": {
+      "message": "这个边界路由器上已经有一个网络正在创建。"
+    },
+    "invalid_parameter": {
+      "message": "参数不合法:{reason}"
+    },
+    "network_exists": {
+      "message": "这个边界路由器已经有 Thread 网络。Matter 没有删除网络的命令,需要在设备上清除。"
+    },
+    "create_failed": {
+      "message": "创建 Thread 网络失败:{reason}"
+    },
+    "no_network": {
+      "message": "这个边界路由器上没有可更改的 Thread 网络。"
+    },
+    "sync_failed": {
+      "message": "无法从边界路由器读取网络凭证:{reason}"
+    },
+    "no_channel_available": {
+      "message": "按选项里的设置排除之后,没有可用的 Thread 信道了。请减少一些排除项,或者在操作里直接指定信道。"
+    },
+    "not_leader": {
+      "message": "这个边界路由器不是它所在 Thread 网络的 Leader,不能更改信道。"
+    },
+    "pending_in_progress": {
+      "message": "这个边界路由器上已经有一次网络迁移在等待生效,请等它完成后再试。"
+    },
+    "already_on_channel": {
+      "message": "网络已经在信道 {channel} 上。"
+    },
+    "change_failed": {
+      "message": "更改信道失败:{reason}"
+    },
+    "change_not_switched": {
+      "message": "边界路由器接受了更改,但网络没有在预期时间内切换:{reason}。请稍后查看信道传感器;网络切换后凭证会自动保存。"
+    },
+    "credentials_not_saved": {
+      "message": "边界路由器上的 Thread 网络已经变更,但凭证没能保存到 Home Assistant({reason})。请运行\"保存网络凭证\"操作补存。"
+    },
+    "adopt_failed": {
+      "message": "加入 Thread 网络失败:{reason}"
+    },
+    "no_preferred_dataset": {
+      "message": "Home Assistant 里没有首选 Thread 网络。请指定来源边界路由器,或先在 Thread 页面设置首选网络。"
+    },
+    "source_no_network": {
+      "message": "来源边界路由器上没有 Thread 网络。"
+    },
+    "already_on_network": {
+      "message": "这个边界路由器已经在这个 Thread 网络里了。"
+    },
+    "adopt_not_leader": {
+      "message": "这个边界路由器已经在另一个 Thread 网络里,而且不是那个网络的 Leader,不能迁移它。请在 Leader 上执行,或先清除这个边界路由器。"
+    },
+    "adopt_not_switched": {
+      "message": "网络没有在预期时间内切换:{reason}。迁移已交给边界路由器,之后仍可能生效,请稍后看网络传感器。"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "信道选择",
+        "description": "创建网络时没有指定信道,会自动选择能避开干扰的信道。Zigbee 信道会自动从 ZHA 读取;你知道的其他情况在这里补充。",
+        "data": {
+          "wifi_channels": "附近的 Wi-Fi 信道(2.4 GHz)",
+          "avoid_channels": "要避开的 Thread 信道"
+        },
+        "data_description": {
+          "wifi_channels": "附近 Wi-Fi 接入点用的信道,它们覆盖到的 Thread 信道会被避开。",
+          "avoid_channels": "这些信道永远不会被选中。"
+        }
+      }
+    }
+  },
+  "issues": {
+    "credentials_missing": {
+      "title": "Thread 凭证没有保存",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "保存 Thread 网络凭证",
+            "description": "边界路由器上有 Thread 网络\"{name}\",但 Home Assistant 里没有保存它的凭证。没有凭证就无法把 Thread 设备加入这个网络。选择\"提交\"会从边界路由器读取并保存。"
+          }
+        },
+        "abort": {
+          "sync_failed": "无法保存凭证:{reason}",
+          "not_loaded": "Thread Border Router 集成尚未加载。"
+        }
+      }
+    },
+    "credentials_out_of_sync": {
+      "title": "Thread 凭证已过期",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "保存 Thread 网络凭证",
+            "description": "边界路由器上的 Thread 网络\"{name}\"发生了变化(比如迁到了另一个信道),Home Assistant 里保存的凭证比它旧。选择\"提交\"会从边界路由器读取当前的凭证并保存。"
+          }
+        },
+        "abort": {
+          "sync_failed": "无法保存凭证:{reason}",
+          "not_loaded": "Thread Border Router 集成尚未加载。"
+        }
+      }
+    }
+  }
+}

@@ -164,6 +164,9 @@ def sdkconfig_fragment(v: dict) -> str:
     return (
         "# 由 scripts/gen_commissioning.py 根据 config/ 生成,请勿手改,也不要提交。\n"
         f"CONFIG_ENABLE_CHIP_SHELL={'y' if v['debug_shell'] else 'n'}\n"
+        # `matter tasks` 命令(列出各任务的栈水位)需要 FreeRTOS 的统计功能,只在调试版打开
+        f"CONFIG_FREERTOS_USE_TRACE_FACILITY={'y' if v['debug_shell'] else 'n'}\n"
+        f"CONFIG_FREERTOS_USE_STATS_FORMATTING_FUNCTIONS={'y' if v['debug_shell'] else 'n'}\n"
         f"CONFIG_DEVICE_VENDOR_ID={v['vendor_id']:#x}\n"
         f"CONFIG_DEVICE_PRODUCT_ID={v['product_id']:#x}\n"
         f"CONFIG_DEFAULT_DEVICE_HARDWARE_VERSION={v['hardware_version']}\n"

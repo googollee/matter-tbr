@@ -27,11 +27,7 @@ if [ ! -e "$DEPS/connectedhomeip" ]; then
   echo "Apple Silicon 在 bootstrap 之后还需运行:./scripts/fix_on_mac.sh"
 fi
 
-# 项目自己的 Python 环境(gen_commissioning.py 等脚本用),不与 ESP-IDF / Pigweed 的 venv 混用
-if [ ! -x "$ROOT/.venv/bin/python" ]; then
-  python3 -m venv "$ROOT/.venv"
-fi
-"$ROOT/.venv/bin/pip" install -q -r "$ROOT/scripts/requirements.txt"
+"$ROOT/scripts/setup_venv.sh"
 
 # 固件通过 third_party/connectedhomeip 引用 Matter SDK
 mkdir -p "$ROOT/firmware/third_party"

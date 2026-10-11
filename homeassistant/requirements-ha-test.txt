@@ -1,0 +1,7 @@
+# thread_br 集成的测试与命令行工具依赖,由 scripts/setup.sh 装进项目 .venv(Python >= 3.14.2,HA 2026.9 的要求):
+#   .venv/bin/python -m pytest homeassistant/tests -o asyncio_mode=auto
+# 版本与 HA 2026.9.4 的固定版本一致(pytest-homeassistant-custom-component 0.13.367 依赖 homeassistant==2026.9.4)。
+pytest-homeassistant-custom-component==0.13.367
+matter-python-client==1.4.0
+python-otbr-api==2.10.0
+websockets

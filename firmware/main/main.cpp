@@ -19,6 +19,7 @@
  */
 
 #include "Button.h"
+#include "DebugShell.h"
 #include "DeviceCallbacks.h"
 #include <platform/OpenThread/GenericThreadBorderRouterDelegate.h>
 
@@ -128,6 +129,7 @@ extern "C" void app_main()
 #if CONFIG_OPENTHREAD_CLI
     chip::RegisterOpenThreadCliCommands();
 #endif
+    RegisterDebugShellCommands();
     chip::LaunchShell();
 #endif // CONFIG_ENABLE_CHIP_SHELL
 

@@ -1,0 +1,18 @@
+{
+  "domain": "thread_br",
+  "name": "Thread Border Router",
+  "codeowners": [],
+  "config_flow": true,
+  "dependencies": [
+    "matter",
+    "repairs",
+    "thread"
+  ],
+  "integration_type": "service",
+  "iot_class": "local_push",
+  "requirements": [
+    "python-otbr-api==2.10.0"
+  ],
+  "single_config_entry": true,
+  "version": "0.1.0"
+}
