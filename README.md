@@ -1,5 +1,7 @@
 # matter-tbr
 
+[![test](https://github.com/googollee/matter-tbr/actions/workflows/test.yml/badge.svg)](https://github.com/googollee/matter-tbr/actions/workflows/test.yml)
+
 基于 ESP Thread Border Router v1.2 开发板（ESP32-S3 + ESP32-H2）的 **Matter Thread Border Router** 固件，以及配套的 Home Assistant 集成。
 
 板子烧录固件后，同时是：
@@ -441,6 +443,7 @@ matter-tbr/
 ├── config/                     配对信息的唯一来源
 ├── homeassistant/              HA 自定义集成（custom_components/、tools/、tests/）
 ├── enclosure/                  外壳
+├── .github/                    CI（workflows/：make fw-test、ha-test、component）与 dependabot.yml
 ├── docs/reference/             本地参考资料（原理图等，不提交）
 ├── .deps/                      官方依赖（esp-idf、connectedhomeip），不提交
 ├── .venv/                      Python 环境（Python ≥ 3.14.2，项目脚本与 HA 集成测试共用，由 setup.sh 创建），不提交

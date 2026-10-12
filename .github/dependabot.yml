@@ -1,0 +1,11 @@
+version: 2
+updates:
+  # CI 里用到的 actions(checkout、setup-python 等)。
+  # Python 依赖固定在 HA 的版本上,不自动更新
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
