@@ -48,6 +48,7 @@ make build
 | `make flash PORT=...` | 烧录主固件和 factory 分区 |
 | `make flash-factory PORT=...` | 只烧录 factory 分区 |
 | `make component` | 检查语法和 JSON，把 HA 集成打包到 `out/thread_br/` 和 `out/thread_br.zip`（不含 `__pycache__`），见 [安装与升级](#安装与升级) |
+| `make fw-test` | 固件逻辑（`ButtonLogic`）的主机端单元测试，不需要 ESP-IDF |
 | `make ha-test` | 跑 HA 集成的全部测试（只准备 `.venv`，不下载 SDK）；`ARGS=...` 传给 pytest，如 `make ha-test ARGS="-k change -x"` |
 | `make clean` | 删除 `firmware/` 和 RCP 目录下的 `build/`、`managed_components/`、`sdkconfig`、`sdkconfig.old`，以及 `firmware/sdkconfig.device`、`out/`；不动 `.deps/` 和 `.venv/` |
 
@@ -76,8 +77,8 @@ make build
 
 # 主固件（ESP32-S3），需先运行 .venv/bin/python scripts/gen_commissioning.py
 . .deps/esp-idf/export.sh
-. .deps/connectedhomeip/scripts/activate.sh
-cd firmware
+cd .deps/connectedhomeip && . scripts/activate.sh   # 要在 SDK 目录里 source，否则会报 pathspec 错误
+cd ../../firmware
 idf.py set-target esp32s3
 idf.py build
 ```
@@ -429,6 +430,7 @@ matter-tbr/
 │   ├── sdkconfig.device        （生成，不提交）调试开关、VID/PID
 │   ├── partitions.csv          fctry 分区存放 factory 数据
 │   ├── third_party/connectedhomeip  → 符号链接到 ../../.deps/connectedhomeip
+│   ├── test/                   主机端单元测试（make fw-test）
 │   └── main/                   main.cpp、Button.cpp、DeviceCallbacks.cpp 等；DebugShell.cpp 仅 debug_shell 构建
 ├── scripts/
 │   ├── setup.sh                下载/链接官方依赖到 .deps/，并调用 setup_venv.sh

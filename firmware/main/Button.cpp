@@ -17,6 +17,7 @@
  */
 
 #include "Button.h"
+#include "ButtonLogic.h"
 
 #include <driver/gpio.h>
 #include <esp_log.h>
@@ -102,22 +103,31 @@ void IRAM_ATTR ButtonIsrHandler(void * /* arg */)
     portYIELD_FROM_ISR(higherPriorityTaskWoken);
 }
 
-// Fires the factory reset only if the pin is still actually low, and marks the state as
-// consumed so a release edge arriving afterwards is treated as a no-op transition rather
-// than firing the short-press action too.
-void ProcessLongPressExpiry(bool & pressed)
+void PerformAction(ButtonAction action)
 {
-    if (pressed && gpio_get_level(kButtonGpioNum) == 0)
+    switch (action)
     {
-        pressed = false;
+    case ButtonAction::kNone:
+        break;
+    case ButtonAction::kStartLongPressTimer:
+        ESP_LOGI(TAG, "Button pressed");
+        esp_timer_stop(sLongPressTimer); // defensive: no-op unless a previous cycle left it armed
+        esp_timer_start_once(sLongPressTimer, kLongPressThresholdUs);
+        break;
+    case ButtonAction::kShortPress:
+        ESP_LOGI(TAG, "Button released");
+        esp_timer_stop(sLongPressTimer); // no-op if it already fired (long press already handled)
+        LogIfScheduleFailed("commissioning window re-open", PlatformMgr().ScheduleWork(HandleOpenCommissioningWindow, 0));
+        break;
+    case ButtonAction::kFactoryReset:
         LogIfScheduleFailed("factory reset", PlatformMgr().ScheduleWork(HandleFactoryReset, 0));
+        break;
     }
 }
 
 void ButtonTask(void * /* param */)
 {
-    // Idle level is high (internal pull-up; the button pulls the pin low when pressed).
-    bool pressed = false;
+    ButtonLogic logic;
 
     ButtonEvent event;
     while (true)
@@ -129,7 +139,7 @@ void ButtonTask(void * /* param */)
 
         if (event == ButtonEvent::kLongPressExpired)
         {
-            ProcessLongPressExpiry(pressed);
+            PerformAction(logic.OnLongPressExpired(gpio_get_level(kButtonGpioNum) == 0));
             continue;
         }
 
@@ -145,29 +155,13 @@ void ButtonTask(void * /* param */)
             longPressExpiredDuringDebounce |= (drained == ButtonEvent::kLongPressExpired);
         }
 
-        bool nowPressed = (gpio_get_level(kButtonGpioNum) == 0);
-        if (nowPressed != pressed)
-        {
-            pressed = nowPressed;
-            if (pressed)
-            {
-                ESP_LOGI(TAG, "Button pressed");
-                esp_timer_stop(sLongPressTimer); // defensive: no-op unless a previous cycle left it armed
-                esp_timer_start_once(sLongPressTimer, kLongPressThresholdUs);
-            }
-            else
-            {
-                ESP_LOGI(TAG, "Button released");
-                esp_timer_stop(sLongPressTimer); // no-op if it already fired (long press already handled)
-                LogIfScheduleFailed("commissioning window re-open", PlatformMgr().ScheduleWork(HandleOpenCommissioningWindow, 0));
-            }
-        }
+        PerformAction(logic.OnSettledLevel(gpio_get_level(kButtonGpioNum) == 0));
 
         if (longPressExpiredDuringDebounce)
         {
-            // pressed reflects the freshly-read level above, so this correctly no-ops if the
-            // edge handling just above already turned it into a release.
-            ProcessLongPressExpiry(pressed);
+            // The level is read afresh, so this correctly no-ops if the edge handling just
+            // above already turned it into a release.
+            PerformAction(logic.OnLongPressExpired(gpio_get_level(kButtonGpioNum) == 0));
         }
     }
 }

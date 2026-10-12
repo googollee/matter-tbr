@@ -16,18 +16,22 @@ OUT       := $(ROOT)/out
 
 # 必须先 source ESP-IDF,再 source Matter 环境,顺序不能反
 IDF_ENV    := . $(IDF_DIR)/export.sh >/dev/null
-MATTER_ENV := . $(MATTER)/scripts/activate.sh >/dev/null
+# activate.sh 里用相对路径检查子模块(git submodule status third_party/...),
+# 必须在 SDK 目录里 source,否则会打印三行 "pathspec ... did not match";
+# 后面的命令都会再 cd 到 $(FW_DIR)
+MATTER_ENV := cd $(MATTER) && . scripts/activate.sh >/dev/null
 
 # 这两个文件决定 sdkconfig 的内容;IDF 只在 sdkconfig 不存在时才应用 defaults,
 # 所以它们变了就要删掉旧的 sdkconfig 重新生成
 CONFIG_INPUTS := $(FW_DIR)/sdkconfig.defaults $(FW_DIR)/sdkconfig.device
 STAMP         := $(FW_DIR)/.sdkconfig.stamp
 
+FW_TEST_BUILD := $(OUT)/fw-test
 COMPONENT_SRC := $(ROOT)/homeassistant/custom_components/thread_br
 
 .DEFAULT_GOAL := build
 
-.PHONY: help build deps venv config rcp firmware flash flash-factory clean component ha-test
+.PHONY: help build deps venv config rcp firmware flash flash-factory clean component ha-test fw-test
 
 help: ## 列出所有命令
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z_-]+:.*## / {printf "  make %-14s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -105,3 +109,8 @@ component: venv ## 检查并打包 HA 集成到 out/thread_br/ 和 .zip
 
 ha-test: venv ## 跑 HA 集成的全部测试(ARGS 传给 pytest)
 	$(PY) -m pytest homeassistant/tests -o asyncio_mode=auto $(ARGS)
+
+fw-test: ## 固件逻辑的主机端单元测试(不需要 ESP-IDF)
+	@mkdir -p $(FW_TEST_BUILD)
+	$(CXX) -std=c++17 -Wall -Wextra -Werror -o $(FW_TEST_BUILD)/button_logic_test $(FW_DIR)/test/button_logic_test.cpp
+	$(FW_TEST_BUILD)/button_logic_test
