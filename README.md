@@ -153,10 +153,10 @@ chip[SVR]: Manual pairing code: [34970112332]
 三种方式，效果相同：生成随机网络密钥和 PSKc、按环境自动选信道、通过 Matter 下发给设备、把凭证保存到 HA 的 Thread 凭证库并同步给 matter-server。
 
 - **HA 设备页的“创建网络”按钮**：用默认参数。设备上已有网络或正在创建/迁移时不可用，创建期间“网络”传感器显示“创建中”。
-- **`thread_br.create_network` 操作**（设置 → 开发者工具 → 操作，目标选“Thread BR Thread”设备）：可选网络名（1~16 字节）、信道（11~26）、密码短语（6~255 字节）。不填则网络名随机、信道自动选。
+- **`thread_br.create_network` 操作**（设置 → 开发者工具 → 操作，目标选“Thread BR Thread”设备）：可选网络名（1-16 字节）、信道（11-26）、密码短语（6-255 字节）。不填则网络名随机、信道自动选。
 - **命令行**：`homeassistant/tools/create_network.py`，默认只演练，`--apply` 才真正执行，且必须同时指定 `--save-dataset 文件` 保存 dataset（文件权限 0600）。直接连 matter-server 的 WebSocket，不经过 HA，**不会**更新 HA 的凭证库，需要之后再运行 `thread_br.sync_network`。
 
-创建需要 6~33 秒（设备要等 Thread 网络真正建立才返回）。新网络不会自动成为 HA 的**首选**网络（HA 里已有首选网络时）；要用它给 Thread 设备配网，请在 HA 的 Thread 页面设为首选。
+创建需要 6-33 秒（设备要等 Thread 网络真正建立才返回）。新网络不会自动成为 HA 的**首选**网络（HA 里已有首选网络时）；要用它给 Thread 设备配网，请在 HA 的 Thread 页面设为首选。
 
 **只能创建一次。** Matter 标准没有删除网络的命令，设备上已有网络时会拒绝新的 dataset（错误码 203）。要重建，先在设备上清除：串口 `matter otcli factoryreset`（只清 Thread，保留配对），或长按 BOOT 键（连配对一起清）。⚠️ `factoryreset` 没有二次确认，执行前确认连的是哪块板子。
 
@@ -174,7 +174,7 @@ chip[SVR]: Manual pairing code: [34970112332]
 | 设备状态 | 做法 |
 | --- | --- |
 | 没有网络 | 直接加入，几秒到一分钟，期间“网络”传感器显示“创建中”。 |
-| 已经在**另一个**网络里 | Matter 没有删除网络的命令，只能把**整个旧网络**迁到目标网络：延迟（默认 120 秒，30~600）到期后，旧网络里**所有设备一起切换**。 |
+| 已经在**另一个**网络里 | Matter 没有删除网络的命令，只能把**整个旧网络**迁到目标网络：延迟（默认 120 秒，30-600）到期后，旧网络里**所有设备一起切换**。 |
 
 ⚠️ 第二种是覆盖，要知道：
 
@@ -197,11 +197,11 @@ chip[SVR]: Manual pairing code: [34970112332]
 
 | 参数 | 说明 |
 | --- | --- |
-| `channel` | 目标信道 11~26；不填则自动选 |
-| `delay` | 延迟 30~600 秒，默认 120 |
+| `channel` | 目标信道 11-26；不填则自动选 |
+| `delay` | 延迟 30-600 秒，默认 120 |
 
 - 只在边界路由器是网络 **Leader** 时可用。
-- 新信道必须与当前信道不同，且在网络的信道掩码内（本项目创建的网络是 11~26）。
+- 新信道必须与当前信道不同，且在网络的信道掩码内（本项目创建的网络是 11-26）。
 - 设备上已有一次迁移在等延迟计时器时，再次迁移会被拒绝（提示“已经有一次信道迁移在等待生效”），等它生效后再改。这期间“网络”传感器显示“迁移信道中”。
 - 操作会等到设备报告已在新信道上，再保存新凭证；迁移期间“网络”传感器显示“迁移信道中”。
 - 超时仍未切换时会提示“稍后再看”：设备已收到变更，之后仍会生效，生效后凭证自动同步。
@@ -214,7 +214,7 @@ chip[SVR]: Manual pairing code: [34970112332]
 1. 优先顺序 **25 → 15 → 26**（夹在 Wi-Fi 1/6/11 的空隙里；26 在个别射频上会降低发射功率，放最后）。
 2. 排除：
    - ZHA 正在用的 Zigbee 信道（自动读取）：同频直接排除，相邻一个信道尽量避开；
-   - 你在选项里填的 Wi-Fi 信道所压住的 Thread 信道（Wi-Fi 1 → 11~14，6 → 16~19，11 → 21~24，13 → 23~26，14 → 25~26）；
+   - 你在选项里填的 Wi-Fi 信道所压住的 Thread 信道（Wi-Fi 1 → 11-14，6 → 16-19，11 → 21-24，13 → 23-26，14 → 25-26）；
    - 你在选项里填的“要避开的 Thread 信道”。
 3. 首选信道都不行时，放宽“相邻信道”的限制；再不行，在所有信道里选离已知干扰最远的；全被排除则报错。
 4. 显式指定的 `channel` 永远优先。选择过程写进 HA 日志（`自动选信道 …`）。
@@ -280,8 +280,8 @@ HA 的 Thread 凭证库里的 dataset 要和设备上的网络一致，否则给
 
 设置 → 设备与服务 → Thread Border Router → 配置：
 
-- **附近的 Wi-Fi 信道（2.4 GHz）**：1~14，多选。
-- **要避开的 Thread 信道**：11~26，多选。
+- **附近的 Wi-Fi 信道（2.4 GHz）**：1-14，多选。
+- **要避开的 Thread 信道**：11-26，多选。
 
 用于 [自动选信道](#自动选信道)。
 
@@ -323,8 +323,8 @@ scripts/gen_commissioning.py        （make build / make config 自动运行）
 | `vendor_id` / `product_id` | `0xFFF1` / `0x8000` | 测试 VID/PID；正式 VID 需加入 CSA |
 | `vendor_name` / `product_name` / `serial_number` | `TEST_VENDOR` / `Thread BR` / `TEST_SN` | 设备信息，写入 factory 分区 |
 | `hardware_version` / `hardware_version_string` | `0` / `TEST_VERSION` | 同上 |
-| `discriminator` | `3840` | 0~4095 |
-| `passcode` | `20202021` | 1~99999998，不能是 `11111111` 等规范禁用值 |
+| `discriminator` | `3840` | 0-4095 |
+| `passcode` | `20202021` | 1-99999998，不能是 `11111111` 等规范禁用值 |
 | `debug_shell` | `false` | 打开串口 shell，发布版保持 `false`，见 [调试 shell](#调试-shell) |
 | `attestation.mode` | `test` | `test` 使用 `config/attestation/test/` 的证书；`custom` 属阶段 2，未实现 |
 
@@ -365,7 +365,7 @@ debug_shell: true
 
 - **matter-server 的实现要认准**：常见镜像 `ghcr.io/matter-js/matterjs-server` 是 matter.js（Node.js）实现，**不是** `home-assistant-libs/python-matter-server`，WS API 字段约定不同。握手信息 `sdk_version` 形如 `matter-server/x.y.z (matter.js/a.b.c)` 即是前者。其 `device_command` 里**字节字段要用 base64**，十六进制会被当成 base64 静默解码成乱码。
 - **matter-server 缓存里的 Thread 网络诊断（0x35）属性不会更新**，所以集成直接向设备读取状态，不读缓存。
-- **`SetActiveDatasetRequest` 要等 Thread 网络真正建立才返回**，耗时 6~33 秒，`interaction_timeout_ms` 建议 45~60 秒。客户端报 `Operation aborted` 不一定是失败，先别重试，去串口看 `matter otcli state` / `ifconfig`。它也可能是板子崩溃重启（matter-server 日志里同时有 `Peer reports shutdown` 和 `bootReason`，串口有 panic）。
+- **`SetActiveDatasetRequest` 要等 Thread 网络真正建立才返回**，耗时 6-33 秒，`interaction_timeout_ms` 建议 45-60 秒。客户端报 `Operation aborted` 不一定是失败，先别重试，去串口看 `matter otcli state` / `ifconfig`。它也可能是板子崩溃重启（matter-server 日志里同时有 `Peer reports shutdown` 和 `bootReason`，串口有 panic）。
 - **下发网络必须走完整三步**：`ArmFailSafe` → `SetActiveDatasetRequest` → `CommissioningComplete`。漏了最后一步，fail-safe 超时后设备会撤销网络，这是 Matter 标准的事务保护。迁移信道用的 `SetPendingDatasetRequest` 不需要 fail-safe。
 - **`CHIP` 任务栈为 16384 字节**（`sdkconfig.defaults`）。创建网络和采纳网络这两条路径在 `CHIP` 任务里激活 Thread，峰值约 9.3 KB，SDK 默认的 9216 会溢出重启（串口 `A stack overflow in task CHIP has been detected`）。
 - **固件开着 `TestEventTrigger`，用 SDK 的公开默认 enable key**（`00112233445566778899aabbccddeeff`）。固件没有注册自己的触发器，影响有限；**发布前应关掉或换 key**。
@@ -402,7 +402,7 @@ debug_shell: true
 
 板载红灯不可控，计划外接一颗 **WS2812** 可寻址 RGB LED。
 
-- 硬件：WS2812/WS2812B 模块 + 300~500Ω 电阻（串在数据线上）；供电用左侧排针的 `3V3` / `GND`（标称 5V，3.3V 能亮，颜色稍暗）。
+- 硬件：WS2812/WS2812B 模块 + 300-500Ω 电阻（串在数据线上）；供电用左侧排针的 `3V3` / `GND`（标称 5V，3.3V 能亮，颜色稍暗）。
 - 数据线：**GPIO14**，备选 **GPIO40**。避开：0（BOOT）、1/2（I2C）、17/18（与 H2 通信的 UART1）、21/38/45（扩展排针 SPI2）、43/44（控制台 UART0）、45（strapping）、46（S3 上仅输入）。
 - 驱动：ESP-IDF `led_strip`（RMT）。
 - 状态映射：慢闪蓝＝BLE 广播中；快闪＝配对中；常亮绿＝配对成功且 Thread 网络已建立；红＝出错。
@@ -420,7 +420,7 @@ enclosure/
 └── images/
 ```
 
-外壳上印的 QR 和配对码必须与固件一致，所以都由同一份 `config/` 生成；提交的只有默认测试值，本地值生成的产物在被忽略的 `out/` 里。QR 作为独立零件换色或分色打印；模块边长建议 ≥ 0.8~1.2 mm（0.4 喷嘴），四周留静区，注意打印面是否镜像。
+外壳上印的 QR 和配对码必须与固件一致，所以都由同一份 `config/` 生成；提交的只有默认测试值，本地值生成的产物在被忽略的 `out/` 里。QR 作为独立零件换色或分色打印；模块边长建议 ≥ 0.8-1.2 mm（0.4 喷嘴），四周留静区，注意打印面是否镜像。
 
 ## 项目结构与硬件
 
