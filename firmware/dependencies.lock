@@ -142,7 +142,7 @@ dependencies:
   idf:
     source:
       type: idf
-    version: 5.5.4
+    version: 5.5.5
 direct_dependencies:
 - espressif/esp_delta_ota
 - espressif/esp_encrypted_img

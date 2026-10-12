@@ -13,7 +13,7 @@ VID `0xFFF1` / PID `0x8000`。这些材料在 SDK 中是公开的,**仅限开发
 | `pai_cert.der` | PAI 证书 | `ExamplePAI.cpp` `kDevelopmentPAI_Cert_FFF1` |
 | `cd.der` | Certification Declaration | `DeviceAttestationCredsExample.cpp` `kCdForAllExamples`(VID=0xFFF1 回退分支) |
 
-- SDK 提交:`d305b0761957c960c26c0841e1b50add2365871d`
+- SDK 提交:`99a81bd32986c5292b0b1c9245c8e247c2ad717d`
 - DAC subject:`1.3.6.1.4.1.37244.2.2=8000,1.3.6.1.4.1.37244.2.1=FFF1,CN=Matter Dev DAC 0xFFF1/0x8000`
 - PAI subject:`1.3.6.1.4.1.37244.2.1=FFF1,CN=Matter Dev PAI 0xFFF1 no PID`
 

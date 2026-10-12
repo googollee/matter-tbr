@@ -8,8 +8,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DEPS="$ROOT/.deps"
 
-IDF_VERSION="v5.5.4"
-MATTER_COMMIT="d305b076195"   # connectedhomeip,已验证可编译的版本
+IDF_VERSION="v5.5.5"
+MATTER_COMMIT="v1.7-te2"   # connectedhomeip,已验证可编译的版本(tag)
 
 mkdir -p "$DEPS"
 
