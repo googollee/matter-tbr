@@ -52,7 +52,6 @@ jobs:
             homeassistant/requirements-ha-test.txt
 
       - name: 安装 OpenSCAD(apt)
-        if: ${{ !matrix.snapshot }}
         run: |
           sudo apt-get update
           sudo apt-get install -y openscad fonts-liberation
@@ -62,7 +61,6 @@ jobs:
         if: ${{ matrix.snapshot }}
         run: |
           sudo apt-get update
-          sudo apt-get install -y fonts-liberation
           base=https://files.openscad.org/snapshots
           name=$(curl -fsSL "$base/" | grep -o 'OpenSCAD-[0-9.]*-x86_64\.AppImage' | sort -uV | tail -n 1)
           test -n "$name"
