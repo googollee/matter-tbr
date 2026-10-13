@@ -3,6 +3,7 @@
 // 两件打印：
 //   底壳 base  开发板嵌入其中，底面凹刻 Matter 配对二维码和手动配对码
 //   上盖 lid   顶面完全平整；WS2812 模块嵌在盖子里，LED 完全镂空；
+//              模块靠两根立柱穿过它的安装孔，M2 自攻螺丝 + 垫圈从背面拧紧固定（不靠胶）；
 //              盖子上有两个按键，各是一根长导杆，直接顶到 S3 的 BOOT / RESET 键。
 //              导杆和盖子一起打印，靠 3 根很细的断点柱固定在滑动孔里，
 //              装机前用力按一下断点柱就断开，导杆变成能滑动的活动件。
@@ -70,9 +71,22 @@ mod_pins = 2.5;       // 估计：模块背面焊点和引脚凸出的高度
 mod_cx = 17.0;        // 模块中心（板坐标）
 mod_cy = 30.5;
 mod_clr = 0.3;        // 模块凹槽单边间隙
-mod_pocket = 1.2;     // 凹槽深度（模块厚 1.6，露出 0.4，用热熔胶固定）
-led_dx = 0;           // LED 相对模块中心的偏移，按实物改
-led_dy = 0;
+mod_pocket = mod_t + 0.2;   // 凹槽深度：模块完全沉进去，背面比凹槽口低 0.2
+// 以下数据来自 SparkFun WS2812_Breakout V_1.1b 的 Eagle 板文件：板 17.78 x 12.7，
+// 原点在左下角，LED 在 (8.89, 4.22)，安装孔在 (2.54, 10.16) 和 (15.24, 10.16)。
+// 方向：从 LED 面看，输入排针在左（朝向 J4 排母），LED 偏下，安装孔在上。
+led_dx = 0;           // LED 相对模块中心的偏移
+led_dy = 4.2164 - mod_d / 2;
+mod_hole_dx = 6.35;   // 两个安装孔相对模块中心：x = ±mod_hole_dx，y = +mod_hole_dy
+mod_hole_dy = 10.16 - mod_d / 2;
+mod_hole_d = 3.302;   // 孔径（M3 尺寸，M2 螺丝穿不住，靠立柱和垫圈固定）
+mod_pin_x = 1.27 - mod_w / 2;   // 输入排针（3 针，y 从模块底边起 1.27 / 3.81 / 6.35）相对模块中心的 x
+mod_pin_y0 = 1.27 - mod_d / 2;  // 第一根针
+// 固定：上盖上长出立柱穿过安装孔，M2 自攻螺丝 + M2 垫圈（外径 5）从背面拧进立柱，压住模块
+post_d = 3.0;         // 立柱直径，比孔小 0.3
+post_tip = 0.2;       // 立柱尖比模块背面高多少，保证垫圈压在模块上，不是压在立柱上
+m2_pilot_d = 1.7;     // M2 自攻孔，PLA / PETG 通用，实测后调
+m2_pilot_depth = 3.0; // 自攻孔深度（从立柱尖算起），螺丝咬合长度约 3 mm，建议 M2 x 6
 led_pkg = 5.0;        // 估计：5050 封装边长
 led_h = 1.6;
 led_win = 5.8;        // LED 窗口边长（完全镂空）
@@ -84,7 +98,7 @@ rc = 1.5;             // 腔体内圆角
 cl = 0.4;             // 板子与腔体侧壁的间隙
 F = 2.0;              // 底板厚度，等于二维码板厚度
 under = 2.0;          // PCB 底面离底板顶面的距离（排针尾针伸出约 1 mm）
-TR = 3.4;             // 上盖顶板厚度（要容得下导杆的圆帽和台肩）
+TR = 4.2;             // 上盖顶板厚度（要容得下导杆的圆帽和台肩；LED 模块立柱的自攻孔也在里面，顶面至少留 0.8）
 lid_clear = 15.0;     // PCB 顶面到顶板内面的距离（排母尾针最高 14.04）
 split_above = 1.0;    // 分型面比 PCB 顶面高多少
 lip_h = 2.0;          // 止口高度
@@ -540,7 +554,13 @@ module plunger(c) {
   }
 }
 
+// LED 模块的两个安装孔位置（板坐标）
+function mod_holes() = [for (sx = [-1, 1]) [mod_cx + sx * mod_hole_dx, mod_cy + mod_hole_dy]];
+z_pocket_top = z_hi_in + mod_pocket;                // 凹槽顶面，模块贴在这里
+z_post_tip = z_pocket_top - mod_t + post_tip;       // 立柱尖
+
 module lid() {
+  difference() {
   union() {
     difference() {
       union() {
@@ -569,6 +589,11 @@ module lid() {
         cube([led_win, led_win, TR + 1]);
     }
     for (c = key_xy) plunger(c);
+    // 穿过模块安装孔的立柱，从凹槽顶面往下长（凹槽挖完之后再加）
+    for (h = mod_holes()) translate([h[0], h[1], z_post_tip]) cylinder(d = post_d, h = z_pocket_top - z_post_tip + eps);
+  }
+  // M2 自攻孔：从立柱尖往上钻进顶板，不能穿透顶面
+  for (h = mod_holes()) translate([h[0], h[1], z_post_tip - eps]) cylinder(d = m2_pilot_d, h = m2_pilot_depth + eps);
   }
 }
 
@@ -598,13 +623,22 @@ module ghost() {
     for (yc = [33.07, 30.53, 27.99])
       bx(5.31 - 0.4, yc - 0.4, 5.31 + 0.4, yc + 0.4, zb + h_j4_body + socket_h, zb + h_j4_body + socket_h + socket_tail);
   }
-  // WS2812 模块：贴在凹槽顶面，LED 朝上伸进窗口
+  // WS2812 模块：贴在凹槽顶面，LED 朝上伸进窗口；带两个安装孔，3 个输入排针在左边
   color("orange") {
     z1 = z_hi_in + mod_pocket;
-    bx(mod_cx - mod_w / 2, mod_cy - mod_d / 2, mod_cx + mod_w / 2, mod_cy + mod_d / 2, z1 - mod_t, z1);
+    difference() {
+      bx(mod_cx - mod_w / 2, mod_cy - mod_d / 2, mod_cx + mod_w / 2, mod_cy + mod_d / 2, z1 - mod_t, z1);
+      for (h = mod_holes()) translate([h[0], h[1], z1 - mod_t - 1]) cylinder(d = mod_hole_d, h = mod_t + 2);
+    }
     bx(mod_cx + led_dx - led_pkg / 2, mod_cy + led_dy - led_pkg / 2,
        mod_cx + led_dx + led_pkg / 2, mod_cy + led_dy + led_pkg / 2, z1, z1 + led_h);
-    bx(mod_cx - mod_w / 2 + 1.5, mod_cy - 3.5, mod_cx - mod_w / 2 + 3.5, mod_cy + 3.5, z1 - mod_t - mod_pins, z1 - mod_t);
+    bx(mod_cx + mod_pin_x - 1, mod_cy + mod_pin_y0 - 1, mod_cx + mod_pin_x + 1, mod_cy + mod_pin_y0 + 5.08 + 1,
+       z1 - mod_t - mod_pins, z1 - mod_t);
+  }
+  // M2 垫圈和螺丝头（背面）
+  color("steelblue") for (h = mod_holes()) translate([h[0], h[1], z_hi_in + mod_pocket - mod_t - 0.3]) {
+    cylinder(d = 5, h = 0.3);
+    translate([0, 0, -1.3]) cylinder(d = 3.8, h = 1.3);
   }
 }
 
