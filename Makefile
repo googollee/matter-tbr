@@ -29,9 +29,13 @@ STAMP         := $(FW_DIR)/.sdkconfig.stamp
 FW_TEST_BUILD := $(OUT)/fw-test
 COMPONENT_SRC := $(ROOT)/homeassistant/custom_components/thread_br
 
+ENC_SRC  := $(ROOT)/enclosure/enclosure.scad
+ENC_OUT  := $(OUT)/enclosure
+OPENSCAD ?= openscad
+
 .DEFAULT_GOAL := build
 
-.PHONY: help build deps venv config rcp firmware flash flash-factory clean component ha-test fw-test
+.PHONY: help build deps venv config rcp firmware flash flash-factory clean component ha-test fw-test enclosure
 
 help: ## 列出所有命令
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z_-]+:.*## / {printf "  make %-14s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -106,6 +110,19 @@ component: venv ## 检查并打包 HA 集成到 out/thread_br/ 和 .zip
 	rsync -a --exclude '__pycache__' --exclude '*.pyc' $(COMPONENT_SRC)/ $(OUT)/thread_br/
 	cd $(OUT) && zip -qr thread_br.zip thread_br
 	@echo "已生成 $(OUT)/thread_br/ 和 $(OUT)/thread_br.zip;复制到 HA 的 custom_components/ 后重启 HA"
+
+# 外壳:把 config/ 里的配对信息(含 device.local.yaml 的覆盖)用 -D 传给 OpenSCAD,
+# 渲染两个零件到 out/enclosure/。不需要 SDK,需要 OpenSCAD。
+enclosure: venv ## 用 config/ 的配对码渲染外壳(base.stl、lid.stl)到 out/enclosure/
+	@command -v $(OPENSCAD) >/dev/null || { echo "找不到 OpenSCAD(brew install openscad,或 make enclosure OPENSCAD=路径)"; exit 1; }
+	@mkdir -p $(ENC_OUT)
+	defs=$$($(PY) $(ROOT)/scripts/gen_enclosure_data.py --defines) || exit 1; \
+	for p in base lid; do \
+	  $(OPENSCAD) -o $(ENC_OUT)/$$p.stl $$defs -D "part=\"$$p\"" $(ENC_SRC) 2>$(ENC_OUT)/$$p.log \
+	    || { cat $(ENC_OUT)/$$p.log; exit 1; }; \
+	done
+	$(PY) $(ROOT)/scripts/gen_enclosure_data.py --verify $(ENC_OUT)/base.log
+	@echo "已生成 $(ENC_OUT)/base.stl 和 lid.stl"
 
 ha-test: venv ## 跑 HA 集成的全部测试(ARGS 传给 pytest)
 	$(PY) -m pytest homeassistant/tests -o asyncio_mode=auto $(ARGS)

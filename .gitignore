@@ -16,7 +16,6 @@ sdkconfig.old
 /pki/
 /out/
 /config/device.local.yaml
-/enclosure/generated/local/
 
 # 其他
 .DS_Store

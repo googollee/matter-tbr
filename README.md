@@ -50,6 +50,7 @@ make build
 | `make flash PORT=...` | 烧录主固件和 factory 分区 |
 | `make flash-factory PORT=...` | 只烧录 factory 分区 |
 | `make component` | 检查语法和 JSON，把 HA 集成打包到 `out/thread_br/` 和 `out/thread_br.zip`（不含 `__pycache__`），见 [安装与升级](#安装与升级) |
+| `make enclosure` | 用 `config/`（含 `device.local.yaml`）的配对码渲染外壳，生成 `out/enclosure/base.stl` 和 `lid.stl`，见 [外壳](#外壳)；需要 OpenSCAD（`OPENSCAD=路径` 可指定），不需要 SDK |
 | `make fw-test` | 固件逻辑（`ButtonLogic`）的主机端单元测试，不需要 ESP-IDF |
 | `make ha-test` | 跑 HA 集成的全部测试（只准备 `.venv`，不下载 SDK）；`ARGS=...` 传给 pytest，如 `make ha-test ARGS="-k change -x"` |
 | `make clean` | 删除 `firmware/` 和 RCP 目录下的 `build/`、`managed_components/`、`sdkconfig`、`sdkconfig.old`，以及 `firmware/sdkconfig.device`、`out/`；不动 `.deps/` 和 `.venv/` |
@@ -402,25 +403,79 @@ debug_shell: true
 
 板载红灯不可控，计划外接一颗 **WS2812** 可寻址 RGB LED。
 
-- 硬件：WS2812/WS2812B 模块 + 300-500Ω 电阻（串在数据线上）；供电用左侧排针的 `3V3` / `GND`（标称 5V，3.3V 能亮，颜色稍暗）。
-- 数据线：**GPIO14**，备选 **GPIO40**。避开：0（BOOT）、1/2（I2C）、17/18（与 H2 通信的 UART1）、21/38/45（扩展排针 SPI2）、43/44（控制台 UART0）、45（strapping）、46（S3 上仅输入）。
+- 硬件：一块自带去耦电容的 WS2812 模块，用 **2×3 排母**插在开发板 J4 排针最上面三行，三根线直接接模块，**板上不焊接，也没有分立元件**。供电用 J4 的 `3V3`（4 脚）和 `GND`（2 脚），不用 5V：WS2812 的数据线门限是 0.7×VDD，5V 供电时 S3 的 3.3V 输出不够。代价是 3.3V 低于标称的 3.5V，蓝色偏暗、黄色偏绿，要在固件里调色值，并限制亮度。接线、焊接、固定和尺寸见 [board/README.md](board/README.md)。
+- 数据线：**GPIO16**（J4 的 6 脚，与 3V3 和 GND 排在一起，三线连续），备选 **GPIO14**（10 脚）。避开：0（BOOT）、1/2（I2C）、17/18（与 H2 通信的 UART1）、21/38/45（扩展排针 SPI2）、43/44（控制台 UART0）、45（strapping）、46（S3 上仅输入）。
 - 驱动：ESP-IDF `led_strip`（RMT）。
-- 状态映射：慢闪蓝＝BLE 广播中；快闪＝配对中；常亮绿＝配对成功且 Thread 网络已建立；红＝出错。
-- 挂接点：Matter commissioning 状态回调。
+- 挂接点：LED 任务周期读取状态快照（配对窗口、Wi-Fi、Thread 角色、边界路由等），不依赖事件回调，避免漏掉重启后已稳定的状态。
+
+**显示规则**
+
+- 颜色表示阶段：红＝板子自身，蓝＝配对和 Wi-Fi，黄＝Thread 和边界路由，绿＝全部正常。
+- 节奏表示状态：**快闪**＝正在进行；**慢闪**＝在等你操作；**长亮**＝停在这一步，不会自己好，需要处理。
+- 按红 → 蓝 → 黄 → 绿的顺序检查，第一个没到位的阶段决定显示什么。运行中某一层退化（如 Wi-Fi 断开），显示会退回到那一层。
+
+**状态与处理**
+
+| 阶段 | LED | 含义与处理 |
+| --- | --- | --- |
+| 启动中 | 红 · 快闪 | 正在启动，等待即可 |
+| 启动异常或运行中严重故障 | 红 · 长亮 | 数据读不出、功能起不来、RCP（H2）通信中断、内存耗尽等。接串口看日志；`fctry` 分区为空或损坏时重新 `make flash-factory`；其余情况重新烧录 |
+| 配对窗口开着 | 蓝 · 慢闪 | 等控制器配对（未配对时自动开，已配对时短按 BOOT 键开）；窗口超时后自动关闭 |
+| 配对中，或连接 Wi-Fi 中 | 蓝 · 快闪 | 配对流程进行中，或正在连接（重连）Wi-Fi；Wi-Fi 一直连不上也是这个状态，见下 |
+| 未配对且窗口已关 | 蓝 · 长亮 | 短按 BOOT 键重新开窗口，用手机配对 |
+| Thread 没建网 | 黄 · 慢闪 | 在 HA 里[创建网络](#创建网络)，或[采纳首选网络](#采纳已有网络多个边界路由器) |
+| Thread 连接中 | 黄 · 快闪 | 正在创建、加入网络，或掉线后重新附着；创建需要 6-33 秒 |
+| Thread 已附着，边界路由没起来 | 黄 · 长亮 | 边界路由未初始化，或前缀未发布。刚附着的几秒内也会短暂出现；持续出现时检查 Wi-Fi 是否有 IPv6，并看串口日志 |
+| 全部正常 | 绿 · 长亮 | Wi-Fi、Thread、边界路由都就绪 |
+
+**异常处理**
+
+- **Wi-Fi 一直蓝色快闪**：设备会无限重连，不会放弃，也不会清除凭证。AP 恢复后会自动连上；换了 Wi-Fi 环境，则短按 BOOT 键，用手机经 BLE 重新配对并写入新的 Wi-Fi 凭证（Thread 网络不受影响）。
+- **一直红色快闪**：当前没有启动超时判断，启动卡死与正常启动都显示红色快闪。持续数分钟没变化时，接串口看日志。
+- **长按 BOOT 键 5 秒的倒计时**没有 LED 反馈；出厂复位后设备重启，回到红色快闪。
+- 蓝色慢闪（窗口开着）优先级高于黄色和绿色，窗口开着的这段时间看不到 Thread 和路由状态。
+
+**局限**
+
+- 绿色长亮只代表板子这边就绪，**不保证** HA 能连到 Thread 设备。Wi-Fi 接入点过滤组播、主机或容器不接受 RA 路由等问题，板子上看不到；要验证请在 HA 里确认 Thread 设备可达。
+- WS2812 的黄色需要上板调色值，否则容易偏绿；红、绿色盲的用户请结合节奏判断。
 
 ### 外壳
 
-用 OpenSCAD 设计，`enclosure/` 预留：
+用 OpenSCAD 设计，分两件打印，合并后用 4 颗 M3 沉头螺丝固定：
+
+- **底壳**：开发板嵌在里面，底面凹刻 Matter 配对 QR 和手动配对码。
+- **上盖**：外接的 WS2812 模块嵌在盖子里，LED 完全镂空；顶面完全平整，没有凸起，也不需要支撑。两个按键各是一根长导杆，直接顶到 S3 的 BOOT / RESET 键（盖子上刻 B / R）。
+
+整机外形约 56.6 × 68.4 × 24 mm（底壳 6.6 mm，上盖 17.4 mm）。两个 USB-C 口在右侧开口，S3 天线和 H2 天线伸出的两端被外壳包住。
 
 ```
 enclosure/
-├── src/          *.scad（include generated/qr_data.scad）
-├── generated/    qr_data.scad（默认值版本，提交）；local/ 为本机值，不提交
-├── stl/          导出的打印文件
+├── enclosure.scad       外壳，单文件，不引用别的 scad
+├── stl/                 导出的打印文件
 └── images/
 ```
 
-外壳上印的 QR 和配对码必须与固件一致，所以都由同一份 `config/` 生成；提交的只有默认测试值，本地值生成的产物在被忽略的 `out/` 里。QR 作为独立零件换色或分色打印；模块边长建议 ≥ 0.8-1.2 mm（0.4 喷嘴），四周留静区，注意打印面是否镜像。
+用法：
+
+```bash
+make enclosure    # 生成 out/enclosure/base.stl（底壳，底面朝下）和 lid.stl（上盖，已翻面：外表面朝下，导杆已在孔里，无需支撑）
+```
+
+它先由 `scripts/gen_enclosure_data.py` 读取 `config/device.yaml` 和 `device.local.yaml`，把 passcode、discriminator、VID、PID 用 `-D` 参数传给 OpenSCAD 渲染，本机的配对码不会写进仓库里的文件。渲染后会把外壳自己算出的 QR 和手动配对码，与 `make config` 生成的 `out/onboarding_codes.csv` 比对；改过 `config/` 后要先 `make config`，否则会报不一致。
+
+CI（`.github/workflows/enclosure.yml`）在外壳相关文件变化时用两个版本的 OpenSCAD 各跑一次 `make enclosure`：Ubuntu 源里的版本（24.04 是 2021.01，最老的要求）和官方最新的 snapshot。snapshot 失败只提醒，不挡 CI。
+
+手动预览或调试时，直接用 OpenSCAD 打开 `enclosure/enclosure.scad`（用文件开头的默认测试值），改 `part`，或命令行传参：`openscad -o x.stl -D 'part="assembly"' enclosure/enclosure.scad`。`part` 可取 `base`、`lid`、`assembly`（整机，含开发板和 LED 模块的示意体）、`exploded`（爆炸图）、`check_base` / `check_lid` / `check_fit`（干涉检查，结果应为空）。
+
+要点：
+
+- **螺丝**：M3 × 10 沉头，从底壳底面穿入，拧进上盖立柱的 2.6 mm 孔（自攻）。立柱都在天线伸出的空角里，不占 PCB。
+- **板子**：没有安装孔，靠底壳四周的墙和 PCB 下的支撑垫定位，PCB 底面离底板 2 mm，给 J4/J5 的针脚尾部留位。
+- **按键**：导杆和上盖一起打印在孔里，靠圆环下面 3 根 0.9 mm 的断点柱固定。**装机前先把每个键的圆帽用力按到底**，断点柱会断开，之后导杆就能在孔里自由滑动：圆帽向下被台肩挡住（行程 0.8 mm），向上被圆环挡住，不会掉出来。杆尖离按键 0.35 mm，杆穿过一根长约 7 mm 的导向管，防止歪斜。按不断就把 `fuse_d` 改小，太容易断就改大。
+- **估计值**：PCB 厚度（1.6）、2×3 排母的高度和尾针长度、LED 模块的外形和 LED 位置都没有来源数据，实测后改文件开头的参数。
+- **二维码**：QR 编码在 `enclosure.scad` 里自己实现，与 SDK 的结果一致（默认值和一个非默认值都核对过）。底面的 QR 板按颜色分层（M600 换色），层高、位置等细节见文件里 `matter_label_plate` 的注释。
+- 板子的尺寸和坐标来自官方 STEP 模型，见 [board/README.md](board/README.md)。
 
 ## 项目结构与硬件
 
@@ -439,12 +494,14 @@ matter-tbr/
 │   ├── setup_venv.sh           创建/更新 .venv 并安装依赖（可单独运行）
 │   ├── fix_on_mac.sh           Apple Silicon 修复
 │   ├── gen_commissioning.py    从 config/ 生成 factory 分区镜像、配对码、固件配置片段
+│   ├── gen_enclosure_data.py   从 config/ 生成外壳用的配对信息（-D 参数），并校验外壳算出的配对码
 │   └── extract_test_attestation.py  从 SDK 源码提取内置测试证书
 ├── config/                     配对信息的唯一来源
 ├── homeassistant/              HA 自定义集成（custom_components/、tools/、tests/）
+├── board/                      开发板改装：外接 WS2812 状态灯的接线与焊接说明
 ├── enclosure/                  外壳
-├── .github/                    CI（workflows/：make fw-test、ha-test、component）与 dependabot.yml
-├── docs/reference/             本地参考资料（原理图等，不提交）
+├── .github/                    CI（workflows/：test.yml 跑 make fw-test、ha-test、component；enclosure.yml 跑 make enclosure）与 dependabot.yml
+├── docs/reference/             本地参考资料（原理图、板子 3D 模型和照片等，不提交）
 ├── .deps/                      官方依赖（esp-idf、connectedhomeip），不提交
 ├── .venv/                      Python 环境（Python ≥ 3.14.2，项目脚本与 HA 集成测试共用，由 setup.sh 创建），不提交
 └── out/                        生成产物，不提交
@@ -455,7 +512,7 @@ matter-tbr/
 | 开发板 | ESP Thread Border Router v1.2：ESP32-S3-WROOM-1（主控，N8R2：8 MB Flash / 2 MB PSRAM）+ ESP32-H2-MINI-1（802.15.4 RCP） |
 | 烧录口 | 两个 USB-C：**S3 口**用于烧录和运行主程序；H2 口仅在单独调试 RCP 时用 |
 | 按键 | BOOT 键（GPIO0，S3 侧），见 [BOOT 键](#boot-键gpio0) |
-| 指示灯 | 板载红灯是电源指示灯，没接 GPIO，软件无法控制 |
+| 指示灯 | 板载红灯是电源指示灯，没接 GPIO，软件无法控制；状态灯另外外接 WS2812，见 [board/README.md](board/README.md) |
 
 macOS 下两个口各自出现 `/dev/cu.usbmodemXXXXXXXX`；同一个物理口路径不变，换口后用 `ls /dev/cu.usbmodem*` 重新确认。原理图（Espressif 提供）不随仓库分发，请自行放入 `docs/reference/`。
 
